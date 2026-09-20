@@ -105,15 +105,33 @@ jobs:
       - name: Generar artefacto
         run: mvn clean package
 
-      - name: Crear ambiente de prueba
-        run: mkdir -p deployment/staging
+      - name: Preparar ambientes
+        run: |
+          mkdir -p deployment/staging
+          mkdir -p deployment/backup
+
+      - name: Guardar version estable
+        run: |
+          cp target/*.jar deployment/backup/
+          echo "Version estable almacenada:"
+          ls -la deployment/backup/
 
       - name: Desplegar artefacto en staging
-        run: cp target/*.jar deployment/staging/
+        run: |
+          cp target/*.jar deployment/staging/
+          echo "Artefacto desplegado en staging"
 
       - name: Verificar despliegue
+        id: verify-deployment
         run: |
           echo "Verificando ambiente de prueba..."
           ls -la deployment/staging/
           test -n "$(find deployment/staging -name '*.jar' -print -quit)"
           echo "Despliegue en ambiente de prueba exitoso"
+
+      - name: Ejecutar rollback ante falla
+        if: failure()
+        run: |
+          echo "Se detecto una falla. Iniciando rollback..."
+          chmod +x scripts/rollback.sh
+          ./scripts/rollback.sh
